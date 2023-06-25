@@ -1,0 +1,26 @@
+<table>
+    <thead>
+        <tr>
+            <th>Растение</th>
+            <th>Совместимо с</th>
+            <th>Несовместимо с</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in data %}
+            <tr>
+                <td>{{ item.plant.name }}</td>
+                <td>
+                  {% for compatible_plant in item.compatible_with.all %}
+                    {{ compatible_plant.name }}
+                  {% endfor %}
+                </td>
+                <td>
+                  {% for incompatible_plant in item.incompatible_with.all %}
+                    {{ incompatible_plant.name }}
+                  {% endfor %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -1,0 +1,413 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Greenhouse</title>
+    <link href="{% static 'css/tailwind.css' %}" rel="stylesheet">
+    <link href="{% static 'css/custom.css' %}" rel="stylesheet">
+</head>
+<body class="bg-gray-200 min-h-screen">
+<header>
+    <nav class="flex items-center justify-between pl-2 flex-wrap bg-teal-500 p-6">
+        <div class="flex items-center flex-shrink-0 text-white mr-2">
+            <span class="font-semibold text-xl tracking-tight">Smart Greenhouse</span>
+        </div>
+        <div class="block lg:hidden">
+            <button class="flex items-center px-3 py-2 border rounded text-teal-200 border-teal-400 hover:text-white hover:border-white">
+                <svg class="fill-current h-3 w-3" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <title>Menu</title>
+                    <path d="M0 3h20v2H0V3zm0 6h20v2H0V9zm0 6h20v2H0v-2z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="w-full block flex-grow lg:flex lg:items-center lg:w-auto">
+            <div class="text-sm lg:flex-grow">
+                <a href="#" class="block mt-4 lg:inline-block lg:mt-0 text-teal-200 hover:text-white mr-4">
+                    Home
+                </a>
+                <a href="#" class="block mt-4 lg:inline-block lg:mt-0 text-teal-200 hover:text-white">
+                    About
+                </a>
+                <a href="accounts/login/" class="block mt-4 lg:inline-block lg:mt-0 text-teal-200 hover:text-white mr-4">
+                    Авторизация
+                </a>
+                <a href="signup/" class="block mt-4 lg:inline-block lg:mt-0 text-teal-200 hover:text-white">
+                    Регистрация
+                </a>
+            </div>
+        </div>
+    </nav>      
+</header>
+
+<main class="max-w-lg mx-auto mt-2 bg-white p-5 rounded shadow-lg">
+    
+    <h1 class="text-2xl font-bold text-center text-gray-900">Выберите ячейку и укажите растение</h1>
+    
+    <div id="grid-container" class="grid py-2 px-2 gap-1">
+
+    </div>
+    <div class="modal hidden fixed z-10 inset-0" id="infoModal" role="dialog" aria-modal="true">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title mb-2" id="infoModalLabel">Справочная информация</h5>
+            </div>
+            <div class="modal-body overflow-auto" id="infoModalBody">
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary close" data-dismiss="modal">Закрыть</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    <form method="post" class="space-y-5 mt-2 px-2 py-2 border" id="plant-form" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="cell" id="id_cell">
+        {{ form_in_greenhouse.non_field_errors }}
+        <div class="mb-4">
+            <label for="{{ form_in_greenhouse.plant.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Select Plant:</label>
+            {{ form_in_greenhouse.plant }}
+        </div>
+        <button type="submit" class="w-full py-2 px-4 bg-teal-500 text-white rounded hover:bg-teal-600">Submit</button>
+    </form>
+
+    <form method="post" class="space-y-5 mt-2 border px-2" id="manage-plant-form" style="display:none;">
+        {% csrf_token %}
+        <input type="hidden" name="cell" id="manage_id_cell">
+        <div class="mb-4">
+            <label for="{{ manage_form_in_greenhouse.plant.id_for_label }}" class="block text-gray-700 text-sm font-bold mb-2">Change Plant:</label>
+            <p id="plant_name"></p>
+            <p id="watering_time"></p>
+        </div>
+        <button type="button" id="change-plant-btn" class="w-full py-2 px-4 mb-2 bg-teal-500 text-white rounded hover:bg-teal-600">Изменить</button>
+        <button type="button" id="water-plant-btn" class="w-full py-2 px-4 mb-2 bg-teal-500 text-white rounded hover:bg-teal-600">Полить</button>
+        <button type="button" id="remove-plant-btn" class="w-full py-2 px-4 mb-2 bg-teal-500 text-white rounded hover:bg-teal-600">Удалить</button>
+        <button type="button" id="info-plant-btn" class="w-full py-2 px-4 mb-2 bg-teal-500 text-white rounded hover:bg-teal-600">Справочный материал</button>
+    </form>
+    
+    
+</main>
+<!-- совместимость -->
+<div id="compatibilityModal" class="modal hidden fixed z-10 inset-0 mt-2 ml-2" role="dialog" aria-modal="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+            <h5 class="modal-title mb-2" id="compatibilityModalLabel">Таблица совместимости</h5>
+            </div>
+            <div class="modal-body overflow-auto" id="compatibilityModalBody">
+            <!-- Здесь будет таблица совместимости -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="ml-2 fixed bottom-2">
+    <button id="open-modal-btn" class="bg-teal-500 hover:bg-teal-600 text-white px-2 py-2 rounded">таблица совместимости</button>
+</div>
+<!-- температура -->
+<div class="absolute top-[200px] right-2">
+    <div id="temperature_indicator">Температура: </div>
+    <button id="get_statistics_button">Получить статистику</button>
+    <div id="temperature_statistics" class="text-xs"></div>
+    <button class="temp_close hidden">Закрыть</button>
+</div>
+
+<script id="in_greenhouse_json" type="application/json">
+    {{ in_greenhouse_json|escape }}
+</script>
+<script id="plant_data" type="application/json">
+    {{ plant_data|escape }}
+</script>
+<script id="care_instructions_json" type="application/json">
+    {{ care_instructions_json|escape }}
+</script>
+</body>
+<script>
+    var in_greenhouse = JSON.parse('{{ in_greenhouse_json|escapejs|safe }}');
+    var plant_data = JSON.parse('{{ plant_data|escapejs|safe }}');
+    var care_instructions = JSON.parse('{{ care_instructions_json|escapejs|safe }}');
+    console.log(care_instructions);
+    function drawCells() {
+        let rows = "{{ rows }}";
+        let row_length = "{{ row_length }}";
+        let gridContainer = document.getElementById('grid-container');
+        let form = document.getElementById('plant-form');
+        let manageForm = document.getElementById('manage-plant-form'); // добавляем форму управления
+
+        // Очистка контейнера
+        while (gridContainer.firstChild) {
+            gridContainer.firstChild.remove();
+        }
+
+        // Отрисовка ячеек
+        for(let i = 0; i < row_length; i++){
+            let gridRow = document.createElement('div');
+            gridRow.className = 'grid-row';
+            gridContainer.appendChild(gridRow);
+
+            for(let j = 0; j < rows; j++){
+                let cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = 'cell-' + i + '-' + j;
+
+                let cellDatas = in_greenhouse.filter(record => record.fields.cell === cell.id);
+                let cellData = cellDatas[cellDatas.length - 1];
+                if (cellData) {
+                    let plantingDate = new Date(cellData.fields.planting_date);
+                    let currentTime = new Date();
+                    let elapsedTimeInSeconds = (currentTime - plantingDate) / 1000;
+                    let plantTime = plant_data[cellData.fields.plant].time;
+
+                    let img = document.createElement('img');
+                    img.src = plant_data[cellData.fields.plant].image;
+                    cell.appendChild(img);
+
+                    if (elapsedTimeInSeconds > plantTime) {
+                        cell.style.backgroundColor = 'red';
+                    }
+
+                    cell.onclick = function(e) {
+                        e.stopPropagation();
+                        form.style.display = 'none';
+                        manageForm.style.display = 'block'; 
+                        document.getElementById('manage_id_cell').value = this.id;
+                        console.log(plant_data[cellData.fields.plant]);
+                        document.getElementById('plant_name').innerText = "Название: " + plant_data[cellData.fields.plant].name;
+                        document.getElementById('watering_time').innerText = "Поливать каждые: " + plantTime.toString() + "секунд";
+                    }
+                } else {
+                    cell.innerText = '+';
+
+                    cell.onclick = function(e) {
+                        e.stopPropagation();
+                        form.style.display = 'block';
+                        manageForm.style.display = 'none'; 
+                        document.getElementById('id_cell').value = this.id;
+                    }
+                }
+                gridRow.appendChild(cell);
+                document.getElementById('change-plant-btn').onclick = function(e) {
+                    e.stopPropagation();
+                    var cellId = document.getElementById('manage_id_cell').value;
+                    document.getElementById('id_cell').value = cellId;
+                    manageForm.style.display = 'none';
+                    form.style.display = 'block';
+                };
+
+                
+                document.getElementById('water-plant-btn').onclick = function(e) {
+                    e.stopPropagation();
+                    console.log('water');
+
+                    // Отправляем AJAX запрос на сервер для обновления времени добавления ячейки
+                    var cellId = document.getElementById('manage_id_cell').value;
+
+                    // Создаем объект FormData и добавляем туда ID ячейки
+                    var formData = new FormData();
+                    formData.append('cell', cellId);
+
+                    // Отправляем POST запрос на сервер
+                    fetch('/water-plant/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Если сервер ответил статусом 200 OK, значит время добавления ячейки было успешно обновлено
+                            console.log('Plant watered successfully');
+                            // Теперь нам нужно обновить данные на клиенте
+                            updateData();
+                        } else {
+                            // Если сервер вернул статус ошибки, выводим сообщение об ошибке
+                            console.log('Error watering plant');
+                        }
+                    })
+                    .catch(error => {
+                        // Если произошла ошибка сети, выводим сообщение об ошибке
+                        console.log('Network error: ' + error);
+                    });
+                }
+
+                
+                document.getElementById('remove-plant-btn').onclick = function(e) {
+                    e.stopPropagation();
+                    console.log('remove');
+
+                    // Отправляем AJAX запрос на сервер для удаления растения
+                    var cellId = document.getElementById('manage_id_cell').value;
+
+                    // Создаем объект FormData и добавляем туда ID ячейки
+                    var formData = new FormData();
+                    formData.append('cell', cellId);
+
+                    // Отправляем POST запрос на сервер
+                    fetch('/remove-plant/', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Если сервер ответил статусом 200 OK, значит растение было успешно удалено
+                            console.log('Plant removed successfully');
+                            // Теперь нам нужно обновить данные на клиенте
+                            updateData();
+                        } else {
+                            // Если сервер вернул статус ошибки, выводим сообщение об ошибке
+                            console.log('Error removing plant');
+                        }
+                    })
+                    .catch(error => {
+                        // Если произошла ошибка сети, выводим сообщение об ошибке
+                        console.log('Network error: ' + error);
+                    });
+                }
+
+                document.getElementById('info-plant-btn').onclick = function(e) {
+                    e.stopPropagation();
+
+                    // Получаем данные о растении из глобальной переменной care_instructions
+                    var cellId = document.getElementById('manage_id_cell').value;
+                    var cellDatas = in_greenhouse.filter(record => record.fields.cell === cellId);
+                    var cellData = cellDatas[cellDatas.length - 1];
+                    var plantInstructions = care_instructions.find(record => record.fields.plant === cellData.fields.plant);
+
+                    // Заполняем модальное окно данными
+                    document.getElementById('infoModalLabel').textContent = "Справочная информация: " + plant_data[cellData.fields.plant].name;
+                    var modalBody = document.getElementById('infoModalBody');
+                    modalBody.textContent = plantInstructions.fields.care_instructions;
+
+                    // Показываем модальное окно
+                    var modal = document.getElementById('infoModal');
+                    modal.classList.remove('hidden');
+                };
+
+                // Добавим обработчик событий для закрытия модального окна
+                document.querySelector('.modal .close').onclick = function() {
+                    var modal = document.getElementById('infoModal');
+                    modal.classList.add('hidden');
+                };
+
+            }
+        }
+    }
+
+    
+    function transformData(record) {
+        return {
+            model: 'myapp.ingreenhouse',
+            pk: record.id,
+            fields: {
+                user: record.user_id,
+                plant: record.plant_id,
+                cell: record.cell,
+                planting_date: record.planting_date
+            }
+        };
+    }
+    
+    function updateData() {
+        fetch('/current-plants/')
+            .then(response => response.json())
+            .then(data => {
+                in_greenhouse = data.map(transformData);
+                in_greenhouse.sort((a, b) => a.pk - b.pk);
+                // Отрисовка ячеек с новыми данными
+                drawCells();
+            });
+    }
+    
+    // Обновляем данные каждые 5 секунд
+    setInterval(updateData, 1000);
+
+    
+    // Отрисовка ячеек при загрузке страницы
+    window.onload = drawCells;
+
+    document.onclick = function(e) {
+        let form = document.getElementById('plant-form');
+        let manageForm = document.getElementById('manage-plant-form');
+        let togetherTable = document.getElementById('compatibilityModal');
+        if (e.target.id !== 'plant-form' && !form.contains(e.target)) {
+            form.style.display = 'none';
+        }
+        if (e.target.id !== 'manage-plant-form' && !manageForm.contains(e.target)){
+            manageForm.style.display = 'none';
+        }
+        if (e.target.id !== 'compatibilityModal'){
+            togetherTable.style.display = 'none';
+        }
+    };
+
+    close = document.querySelector('.temp_close')
+    let temp = document.getElementById('temperature_statistics');
+    close.onclick = function(e) {
+        temp.innerHTML = ''
+        close.style.display = 'none'
+    }
+
+    document.getElementById('open-modal-btn').onclick = function(e) {
+    e.stopPropagation();
+    var modal = document.getElementById('compatibilityModal');
+    modal.style.display = 'block';
+
+    // Запрос к серверу для получения таблицы совместимости
+    fetch('/get-compatibility-table/', {
+        method: 'GET'
+    })
+    .then(response => response.text())
+    .then(data => {
+        // Вставляем полученную таблицу в модальное окно
+        document.getElementById('compatibilityModalBody').innerHTML = data;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+function updateTemperature() {
+        fetch('/get_current_temperature/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('temperature_indicator').textContent = "Температура: " + data.temperature;
+            });
+    }
+
+    document.getElementById('get_statistics_button').addEventListener('click', function() {
+        fetch('/get_temperature_statistics/')
+            .then(response => response.json())
+            .then(data => {
+                let statisticsElement = document.getElementById('temperature_statistics');
+                statisticsElement.innerHTML = '';
+                data.forEach(record => {
+                    let recordElement = document.createElement('p');
+
+                    let date = new Date(record.time);
+                    let formattedTime = date.getHours().toString().padStart(2, '0') + ":" +
+                        date.getMinutes().toString().padStart(2, '0') + ":" +
+                        date.getSeconds().toString().padStart(2, '0');
+
+                    recordElement.textContent = 'Температура: ' + record.temperature + ', время: ' + formattedTime;
+                    statisticsElement.appendChild(recordElement);
+                });
+                let close = document.querySelector('.temp_close')
+                close.style.display = 'block';
+            });
+    });
+
+    updateTemperature();
+    setInterval(updateTemperature, 2000);
+
+    
+
+
+</script>
+    
+</html>
