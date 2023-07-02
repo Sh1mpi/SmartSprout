@@ -34,15 +34,16 @@ class CustomLoginView(LoginView):
 @login_required
 def home(request):
     user = request.user
+    num_visits=request.session.get('num_visits', 0)
+    request.session['num_visits'] = num_visits+1
     try:
         greenhouse = Greenhouse.objects.get(user=user)
-        in_greenhouse = InGreenhouse.objects.filter(user=user)  # Извлекаем все записи для данного пользователя
+        in_greenhouse = InGreenhouse.objects.filter(user=user)
 
         plant_data = {plant.pk: {'name': plant.name, 'image': plant.image.url, 'time': plant.time} for plant in Plant.objects.all()}
-        in_greenhouse_json = serialize('json', in_greenhouse)  # сериализуем объекты in_greenhouse
-        care_instructions = PlantCare.objects.all()  # Извлекаем все записи об уходе за растениями
-        care_instructions_json = serialize('json', care_instructions)  # Сериализуем их в JSON
-
+        in_greenhouse_json = serialize('json', in_greenhouse)
+        care_instructions = PlantCare.objects.all()  
+        care_instructions_json = serialize('json', care_instructions)  
         if request.method == 'POST':
             form = InGreenhouseForm(request.POST)
             if form.is_valid():
@@ -51,11 +52,9 @@ def home(request):
                 instance.planting_date = timezone.now()
                 existing_entries = InGreenhouse.objects.filter(user=user, cell=instance.cell)
 
-                # Удалить все существующие записи для этой ячейки
                 if existing_entries.exists():
                     existing_entries.delete()
 
-                # Затем сохраните новый экземпляр
                 instance.save()
 
         form = InGreenhouseForm()
@@ -63,9 +62,10 @@ def home(request):
             'form_in_greenhouse': form,
             'rows': greenhouse.rows,
             'row_length': greenhouse.row_length,
-            'plant_data': json.dumps(plant_data), # передаем словарь с изображениями растений
-            'in_greenhouse_json': in_greenhouse_json,  # передаем сериализованный объект in_greenhouse
-            'care_instructions_json': care_instructions_json,  # передаем сериализованный объект care_instructions
+            'plant_data': json.dumps(plant_data), 
+            'in_greenhouse_json': in_greenhouse_json,  
+            'care_instructions_json': care_instructions_json,
+            'num_visits':num_visits,
         }
         return render(request, 'index.html', context)
     except Greenhouse.DoesNotExist:
@@ -101,17 +101,12 @@ def greenhouse_form(request):
 @csrf_exempt
 def change_plant(request):
     if request.method == 'POST':
-        # Получить ID ячейки из запроса
         cell_id = request.POST.get('cell')
-        # Получить ID растения из запроса
         plant_id = request.POST.get('plant')
         
         try:
-            # Найти запись в базе данных с данным ID ячейки
             in_greenhouse = InGreenhouse.objects.get(cell=cell_id)
-            # Обновить ID растения в этой записи
             in_greenhouse.plant_id = plant_id
-            # Сохранить изменения в базе данных
             in_greenhouse.save()
 
             return JsonResponse({'status': 'success'}, status=200)
@@ -153,7 +148,6 @@ def get_compatibility_table(request):
     return render(request, 'compatibility_table.html', context)
 
 def get_current_temperature(request):
-    # Сгенерировать случайное число от 20 до 30 и сохранить в базе данных
     current_temperature = round(uniform(20, 30), 1)
     
     maintain_temperature_records()
@@ -161,7 +155,6 @@ def get_current_temperature(request):
     temperature_data = Temperature(temperature=current_temperature)
     temperature_data.save()
 
-    # Удалить записи, которые старше 24 часов
     old_records = Temperature.objects.filter(time__lte=timezone.now() - timedelta(hours=24))
     old_records.delete()
 
@@ -169,15 +162,12 @@ def get_current_temperature(request):
 
 @csrf_exempt
 def get_temperature_statistics(request):
-    last_24_records = Temperature.objects.order_by('-time')[:24]
+    last_24_records = Temperature.objects.order_by('-time')[:23]
     temperatures = list(last_24_records.values('temperature', 'time'))
     return JsonResponse(temperatures, safe=False)
 
 def maintain_temperature_records():
-    # Получение всех записей о температуре, отсортированных по времени создания
     temperature_records = Temperature.objects.order_by('time')
 
-    # Проверка количества записей
-    if temperature_records.count() > 24:
-        # Удаление самой старой записи
+    if temperature_records.count() > 23:
         temperature_records.first().delete()
