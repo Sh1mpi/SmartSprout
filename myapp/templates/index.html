@@ -135,7 +135,7 @@
         let row_length = "{{ row_length }}";
         let gridContainer = document.getElementById('grid-container');
         let form = document.getElementById('plant-form');
-        let manageForm = document.getElementById('manage-plant-form'); // добавляем форму управления
+        let manageForm = document.getElementById('manage-plant-form');
 
         // Очистка контейнера
         while (gridContainer.firstChild) {
@@ -205,11 +205,9 @@
                     // Отправляем AJAX запрос на сервер для обновления времени добавления ячейки
                     var cellId = document.getElementById('manage_id_cell').value;
 
-                    // Создаем объект FormData и добавляем туда ID ячейки
                     var formData = new FormData();
                     formData.append('cell', cellId);
 
-                    // Отправляем POST запрос на сервер
                     fetch('/water-plant/', {
                         method: 'POST',
                         body: formData,
@@ -219,17 +217,13 @@
                     })
                     .then(response => {
                         if (response.ok) {
-                            // Если сервер ответил статусом 200 OK, значит время добавления ячейки было успешно обновлено
                             console.log('Plant watered successfully');
-                            // Теперь нам нужно обновить данные на клиенте
                             updateData();
                         } else {
-                            // Если сервер вернул статус ошибки, выводим сообщение об ошибке
                             console.log('Error watering plant');
                         }
                     })
                     .catch(error => {
-                        // Если произошла ошибка сети, выводим сообщение об ошибке
                         console.log('Network error: ' + error);
                     });
                 }
@@ -242,11 +236,9 @@
                     // Отправляем AJAX запрос на сервер для удаления растения
                     var cellId = document.getElementById('manage_id_cell').value;
 
-                    // Создаем объект FormData и добавляем туда ID ячейки
                     var formData = new FormData();
                     formData.append('cell', cellId);
 
-                    // Отправляем POST запрос на сервер
                     fetch('/remove-plant/', {
                         method: 'POST',
                         body: formData,
@@ -256,17 +248,13 @@
                     })
                     .then(response => {
                         if (response.ok) {
-                            // Если сервер ответил статусом 200 OK, значит растение было успешно удалено
                             console.log('Plant removed successfully');
-                            // Теперь нам нужно обновить данные на клиенте
                             updateData();
                         } else {
-                            // Если сервер вернул статус ошибки, выводим сообщение об ошибке
                             console.log('Error removing plant');
                         }
                     })
                     .catch(error => {
-                        // Если произошла ошибка сети, выводим сообщение об ошибке
                         console.log('Network error: ' + error);
                     });
                 }
@@ -365,7 +353,6 @@
     })
     .then(response => response.text())
     .then(data => {
-        // Вставляем полученную таблицу в модальное окно
         document.getElementById('compatibilityModalBody').innerHTML = data;
     })
     .catch(error => {
@@ -374,14 +361,15 @@
 }
 
 function updateTemperature() {
-        fetch('/get_current_temperature/')
-            .then(response => response.json())
+    fetch('/get_current_temperature/')
+    .then(response => response.json())
             .then(data => {
                 document.getElementById('temperature_indicator').textContent = "Температура: " + data.temperature;
             });
     }
-
+    
     document.getElementById('get_statistics_button').addEventListener('click', function() {
+        // Запрос к серверу для для получения времени
         fetch('/get_temperature_statistics/')
             .then(response => response.json())
             .then(data => {

@@ -12,7 +12,7 @@ class InGreenhouseForm(forms.ModelForm):
     
     class Meta:
         model = InGreenhouse
-        fields = ['plant', 'cell']
+        fields = ['plant', 'cell']  
         exclude = ['user','planting_date']
 
 class PlantForm(forms.ModelForm):

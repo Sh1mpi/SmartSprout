@@ -5,9 +5,10 @@ from myapp import views
 from myapp.views import CustomLoginView
 from myapp.views import SignUpView
 from myapp.views import water_plant
-from myapp.views import change_plant
 from myapp.views import get_current_temperature
 from myapp.views import get_temperature_statistics
+from myapp.views import CompatibilityListView
+from myapp.views import get_current_plants_api, get_greenhouse_details_api
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -21,10 +22,11 @@ urlpatterns = [
     path('current-plants/', views.get_current_plants, name='current-plants'),
     path('remove-plant/', views.remove_plant, name='remove-plant'),
     path('water-plant/', water_plant, name='water-plant'),
-    path('change-plant/', water_plant, name='change-plant'),
-    path('get-compatibility-table/', views.get_compatibility_table, name='get_compatibility_table'),
     path('get_current_temperature/', get_current_temperature, name='get_current_temperature'),
     path('get_temperature_statistics/', get_temperature_statistics, name='get_temperature_statistics'),
+    path('get-compatibility-table/', CompatibilityListView.as_view(), name='compatibility_table'),
+    path('api/get_current_plants/', get_current_plants_api, name='get_current_plants_api'),
+    path('api/get_greenhouse_details/', get_greenhouse_details_api, name='get_greenhouse_details_api'),
 ]
 
 if settings.DEBUG:

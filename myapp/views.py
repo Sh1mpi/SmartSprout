@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.core.serializers import serialize
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
 
 from .forms import PlantForm, GreenhouseForm,InGreenhouseForm
 from .forms import UserRegistrationForm
@@ -19,6 +20,14 @@ from .forms import UserLoginForm
 import json
 from random import uniform
 from datetime import timedelta
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
+from .serializers import InGreenhouseSerializer, GreenhouseSerializer
+
 
 
 
@@ -30,6 +39,28 @@ class SignUpView(generic.CreateView):
 class CustomLoginView(LoginView):
     form_class = UserLoginForm
     template_name = 'registration/login.html'
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_plants_api(request):
+    user = request.user
+    records = InGreenhouse.objects.filter(
+        Q(user=user) & 
+        (Q(cell__startswith='cell-0'))
+    )
+    serializer = InGreenhouseSerializer(records, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_greenhouse_details_api(request):
+    user = request.user
+    try:
+        greenhouse = Greenhouse.objects.get(user=user)
+        serializer = GreenhouseSerializer(greenhouse)
+        return Response(serializer.data)
+    except Greenhouse.DoesNotExist:
+        return Response({'error': 'Greenhouse not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @login_required
 def home(request):
@@ -98,7 +129,6 @@ def greenhouse_form(request):
         form = GreenhouseForm()
     return render(request, 'greenhouse_form.html', {'form': form})
 
-@csrf_exempt
 def change_plant(request):
     if request.method == 'POST':
         cell_id = request.POST.get('cell')
@@ -127,7 +157,6 @@ def water_plant(request):
         else:
             return JsonResponse({"status": "error"}, status=400)
 
-@csrf_exempt
 def remove_plant(request):
     if request.method == 'POST':
         cell_id = request.POST.get('cell')
@@ -140,12 +169,16 @@ def remove_plant(request):
     else:
         return JsonResponse({"status": "failure", "error": "Invalid request method"})
     
-def get_compatibility_table(request):
-    data = Compatibility.objects.all()
-    context = {
-        'data': data
-    }
-    return render(request, 'compatibility_table.html', context)
+# def get_compatibility_table(request):
+#     data = Compatibility.objects.all()
+#     context = {
+#         'data': data
+#     }
+#     return render(request, 'compatibility_table.html', context)
+class CompatibilityListView(generic.ListView):
+    model = Compatibility
+    template_name = 'compatibility_table.html'
+    context_object_name = 'data'
 
 def get_current_temperature(request):
     current_temperature = round(uniform(20, 30), 1)
@@ -160,7 +193,6 @@ def get_current_temperature(request):
 
     return JsonResponse({"temperature": current_temperature})
 
-@csrf_exempt
 def get_temperature_statistics(request):
     last_24_records = Temperature.objects.order_by('-time')[:23]
     temperatures = list(last_24_records.values('temperature', 'time'))
