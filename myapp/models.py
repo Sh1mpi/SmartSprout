@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from simple_history.models import HistoricalRecords
 
 class Greenhouse(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -15,6 +16,7 @@ class InGreenhouse(models.Model):
     plant = models.ForeignKey('Plant', on_delete=models.CASCADE)
     cell = models.CharField(max_length=255)
     planting_date = models.DateTimeField()
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'То что сейчас в теплице растет'
@@ -35,6 +37,7 @@ class Plant(models.Model):
     name = models.CharField(max_length=255)
     time = models.IntegerField()
     image = models.ImageField(upload_to='plants/',null=True, blank=True) 
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = 'Растение'
@@ -48,6 +51,7 @@ class PlantType(models.Model):
 
 class Temperature(models.Model):
     # поля для таблицы "Температура"
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     temperature = models.FloatField()
     time = models.DateTimeField(auto_now_add=True)
 

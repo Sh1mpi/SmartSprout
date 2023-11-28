@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import InGreenhouse, Greenhouse
+from .models import InGreenhouse, Temperature
 from rest_framework import serializers
 
 class InGreenhouseSerializer(serializers.ModelSerializer):
@@ -7,7 +7,7 @@ class InGreenhouseSerializer(serializers.ModelSerializer):
         model = InGreenhouse
         fields = '__all__'
 
-class GreenhouseSerializer(serializers.ModelSerializer):
+class TemperatureSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Greenhouse
+        model = Temperature
         fields = '__all__'

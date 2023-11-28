@@ -12,7 +12,8 @@ from django.utils import timezone
 from django.core.serializers import serialize
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Q
+from django.db.models import Q,Avg
+
 
 from .forms import PlantForm, GreenhouseForm,InGreenhouseForm
 from .forms import UserRegistrationForm
@@ -21,12 +22,17 @@ import json
 from random import uniform
 from datetime import timedelta
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets
+from rest_framework.decorators import api_view, permission_classes,action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
 
-from .serializers import InGreenhouseSerializer, GreenhouseSerializer
+from .serializers import InGreenhouseSerializer, TemperatureSerializer
+
+from django_filters.rest_framework import DjangoFilterBackend
+from .filters import InGreenhouseFilter
 
 
 
@@ -40,27 +46,59 @@ class CustomLoginView(LoginView):
     form_class = UserLoginForm
     template_name = 'registration/login.html'
 
+class CustomPageNumberPagination(PageNumberPagination):
+    page_size = 10  # Количество объектов на странице
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_current_plants_api(request):
     user = request.user
+    paginator = CustomPageNumberPagination()
     records = InGreenhouse.objects.filter(
         Q(user=user) & 
         (Q(cell__startswith='cell-0'))
     )
-    serializer = InGreenhouseSerializer(records, many=True)
-    return Response(serializer.data)
+    greenhouse_filter = InGreenhouseFilter(request.GET, queryset=records)
+    paginated_records = paginator.paginate_queryset(greenhouse_filter.qs, request)
+    serializer = InGreenhouseSerializer(paginated_records, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_greenhouse_details_api(request):
+def get_temperature_details_api(request):
     user = request.user
     try:
-        greenhouse = Greenhouse.objects.get(user=user)
-        serializer = GreenhouseSerializer(greenhouse)
-        return Response(serializer.data)
-    except Greenhouse.DoesNotExist:
-        return Response({'error': 'Greenhouse not found'}, status=status.HTTP_404_NOT_FOUND)
+        paginator = CustomPageNumberPagination()
+
+        temperatures = Temperature.objects.filter(user=user)
+
+        paginated_records = paginator.paginate_queryset(temperatures,request)
+        serializer = TemperatureSerializer(paginated_records, many=True)
+        return paginator.get_paginated_response(serializer.data)
+    except Temperature.DoesNotExist:
+        return Response({'error': 'Temperature not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+class myViewSet(viewsets.ViewSet):
+    # ... (другие определения классов и методов)
+
+    @action(detail=False, methods=['GET'])
+    @permission_classes([IsAuthenticated])
+    def get_average_temperature(self, request):
+        user = request.user
+
+        try:
+            # Получаем среднюю температуру для записей о температуре текущего пользователя
+            average_temperature = Temperature.objects.filter(user=user).aggregate(Avg('temperature'))['temperature__avg']
+
+            if average_temperature is not None:
+                return Response({'average_temperature': average_temperature}, status=status.HTTP_200_OK)
+            else:
+                return Response({'error': 'No temperature records found for the user'}, status=status.HTTP_404_NOT_FOUND)
+
+        except Temperature.DoesNotExist:
+            return Response({'error': 'Temperature records not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @login_required
 def home(request):
@@ -168,38 +206,31 @@ def remove_plant(request):
             return JsonResponse({"status": "failure", "error": "Plant does not exist"})
     else:
         return JsonResponse({"status": "failure", "error": "Invalid request method"})
-    
-# def get_compatibility_table(request):
-#     data = Compatibility.objects.all()
-#     context = {
-#         'data': data
-#     }
-#     return render(request, 'compatibility_table.html', context)
+
 class CompatibilityListView(generic.ListView):
     model = Compatibility
     template_name = 'compatibility_table.html'
     context_object_name = 'data'
 
 def get_current_temperature(request):
+    user = request.user
     current_temperature = round(uniform(20, 30), 1)
-    
-    maintain_temperature_records()
 
-    temperature_data = Temperature(temperature=current_temperature)
+    temperature_data = Temperature(user=user, temperature=current_temperature)
     temperature_data.save()
 
-    old_records = Temperature.objects.filter(time__lte=timezone.now() - timedelta(hours=24))
-    old_records.delete()
+    maintain_temperature_records(user)
 
     return JsonResponse({"temperature": current_temperature})
 
 def get_temperature_statistics(request):
-    last_24_records = Temperature.objects.order_by('-time')[:23]
+    user = request.user
+    last_24_records = Temperature.objects.filter(user=user).order_by('-time')[:23]
     temperatures = list(last_24_records.values('temperature', 'time'))
     return JsonResponse(temperatures, safe=False)
 
-def maintain_temperature_records():
-    temperature_records = Temperature.objects.order_by('time')
+def maintain_temperature_records(user):
+    temperature_records = Temperature.objects.filter(user=user).order_by('time')
 
     if temperature_records.count() > 23:
         temperature_records.first().delete()
